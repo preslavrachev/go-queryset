@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"path/filepath"
+	"text/template"
 	"time"
 
 	"github.com/jirfag/go-queryset/internal/parser"
@@ -17,6 +18,7 @@ func main() {
 	inFile := flag.String("in", "models.go", "path to input file")
 	outFile := flag.String("out", defaultOutPath, "path to output file")
 	timeout := flag.Duration("timeout", time.Minute, "timeout for generation")
+	tmpl := flag.String("template", "", "custom template for additional code generation")
 	flag.Parse()
 
 	if *outFile == defaultOutPath {
@@ -25,6 +27,9 @@ func main() {
 
 	g := generator.Generator{
 		StructsParser: &parser.Structs{},
+	}
+	if *tmpl != "" {
+		g.CustomTemplate = template.Must(template.New(*tmpl).ParseFiles(*tmpl))
 	}
 
 	ctx, finish := context.WithTimeout(context.Background(), *timeout)

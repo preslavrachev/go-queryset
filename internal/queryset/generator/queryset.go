@@ -8,6 +8,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"text/template"
 
 	"github.com/jirfag/go-queryset/internal/parser"
 	"github.com/jirfag/go-queryset/internal/queryset/field"
@@ -101,9 +102,18 @@ func generateQuerySetConfigs(types *types.Package,
 	return querySetStructConfigs
 }
 
+type GenerateQuerySetsOptions struct {
+	customTemplate *template.Template
+}
+
 // GenerateQuerySetsForStructs is an internal method to retrieve querysets
 // generated code from parsed structs
-func GenerateQuerySetsForStructs(types *types.Package, structs map[string]parser.ParsedStruct) (io.Reader, error) {
+func GenerateQuerySetsForStructs(types *types.Package, structs map[string]parser.ParsedStruct, opts ...func(*GenerateQuerySetsOptions)) (io.Reader, error) {
+	var options GenerateQuerySetsOptions
+	for _, o := range opts {
+		o(&options)
+	}
+
 	querySetStructConfigs := generateQuerySetConfigs(types, structs)
 	if len(querySetStructConfigs) == 0 {
 		return nil, nil
@@ -111,15 +121,23 @@ func GenerateQuerySetsForStructs(types *types.Package, structs map[string]parser
 
 	sort.Sort(querySetStructConfigs)
 
-	var b bytes.Buffer
-	err := qsTmpl.Execute(&b, struct {
-		Configs querySetStructConfigSlice
-	}{
-		Configs: querySetStructConfigs,
-	})
+	var templates []*template.Template
+	templates = append(templates, qsTmpl)
+	if options.customTemplate != nil {
+		templates = append(templates, options.customTemplate)
+	}
 
-	if err != nil {
-		return nil, fmt.Errorf("can't generate structs query sets: %s", err)
+	var b bytes.Buffer
+	for _, t := range templates {
+		err := t.Execute(&b, struct {
+			Configs querySetStructConfigSlice
+		}{
+			Configs: querySetStructConfigs,
+		})
+
+		if err != nil {
+			return nil, fmt.Errorf("can't generate structs query sets: %s", err)
+		}
 	}
 
 	return &b, nil

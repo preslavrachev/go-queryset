@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"text/template"
 
 	"github.com/jirfag/go-queryset/internal/parser"
 	"github.com/pkg/errors"
@@ -16,6 +17,7 @@ import (
 
 type Generator struct {
 	StructsParser *parser.Structs
+	CustomTemplate *template.Template
 }
 
 // Generate generates output file with querysets
@@ -26,7 +28,11 @@ func (g Generator) Generate(ctx context.Context, inFilePath, outFilePath string)
 	}
 
 	var r io.Reader
-	r, err = GenerateQuerySetsForStructs(parsedFile.Types, parsedFile.Structs)
+	r, err = GenerateQuerySetsForStructs(parsedFile.Types, parsedFile.Structs, func(options *GenerateQuerySetsOptions) {
+		if g.CustomTemplate != nil {
+			options.customTemplate = g.CustomTemplate
+		}
+	})
 	if err != nil {
 		return errors.Wrap(err, "can't generate query sets")
 	}
